@@ -230,7 +230,7 @@ end
 
 vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Val{:x}) where T <: Real = (seg.initial_point[1] - vec_initial_point[1]) / (vec[1] - seg.final_point[1] + seg.initial_point[1])
 vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Val{:y}) where T <: Real = (seg.initial_point[2] - vec_initial_point[2]) / (vec[2] - seg.final_point[2] + seg.initial_point[2])
-vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Symbol) where T <: Real = vector_segment_intersection(vec, vec_initial_point, seg, Val(sim))
+vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Symbol) where T <: Real = vector_segment_intersection(vec, vec_initial_point, seg, Val(dim))
 
 function point_on_segment(p::Vector{T}, s::Segment{T}; epsilon::T = 1e-8, debug = false)  where T <: Real
     x1, y1 = s.initial_point
@@ -288,10 +288,10 @@ point_inside_polygon(polygon::Union{Polygon{T}, Rhomboid{T}}, point::Vector{T}; 
 
 ## Mesh generation auxiliary functions
 
-find_cell(position::Vector{T}, mesh::Mesh{T}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
-find_cell(position::Vector{T}, mesh::Mesh{T}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
-find_cell(mesh::Mesh{T}, position::Vector{T}) where T <: Real = find_cell(position, mesh)
-find_cell(mesh::Mesh{T}, position::Vector{T}) where T <: Real = find_cell(position, mesh)
+find_cell(position::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
+find_cell(position::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
+find_cell(mesh::Mesh{T1, T2}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
+find_cell(mesh::Mesh{T1, T2}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 
 
 function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true) where {T1 <: Real, T2 <: Real}# side represents minor diagonal

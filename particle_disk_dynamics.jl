@@ -24,12 +24,12 @@ end
 ## Hard_disk constructors
  # We used two different functions instead of one function with Union in the arguments because a vector of Union of two types makes the code slower
  # This could be solved by defining an Abstract type called Polygon that includes both Polygon and Rhomboid
-function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real}
+function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
     Hard_Disk(mass, position, angular_velocity, radius, n_cell)
 end
 
-function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real}
+function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
     Hard_Disk(mass, position, angular_velocity, radius, n_cell)
 end
@@ -44,33 +44,28 @@ end
 function particle(mass::T, position::Vector{T}, velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
     normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 
     tangetial_vec = find_tangential_vector(velocity)
-    normal_velocity = projection(velocity, normal_vec)
-    tangential_velocity = projection(velocity, tangential_vec)
+    normal_velocity = projection(velocity, normal_vec) .* normal_vec
+    tangential_velocity = projection(velocity, tangential_vec) .* tangential_vec
     n_cell = find_cell(position, mesh)
     Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
 end
 
-function particle(mass::T, position::Vector{T}, velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
+function particle(mass::T1, position::Vector{T1}, velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 
-    tangetial_vec = find_tangential_vector(velocity)
-    normal_velocity = projection(velocity, normal_vec)
-    tangential_velocity = projection(velocity, tangential_vec)
+    tangential_vec = find_tangential_vector(velocity)
+    normal_velocity = projection(velocity, normal_vec) .* normal_vec
+    tangential_velocity = projection(velocity, tangential_vec) .* tangential_vec
     n_cell = find_cell(position, mesh)
-    Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
+    Particle(mass, position, velocity, normal_velocity, tangential_velocity, n_cell)
 end
 
-function particle(mass::T, position::Vector{T}, normal_velocity::Vector{T}, tangential_velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
+function particle(mass::T1, position::Vector{T1}, normal_velocity::Vector{T1}, tangential_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     velocity = normal_velocity .+ tangential_velocity
     n_cell = find_cell(position, mesh)
     Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
 end
 
-function particle(mass::T, position::Vector{T}, normal_velocity::Vector{T}, tangential_velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
-    velocity = normal_velocity .+ tangential_velocity
-    n_cell = find_cell(position, mesh)
-    Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
-end
-
+#Agregar emtodos con T1 y T2 comutados para los argumentos. Esto es para Mesh
 
 ## Dynamics auxiliary functions
 

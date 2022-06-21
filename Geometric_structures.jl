@@ -40,13 +40,24 @@ mutable struct Polyhedron{T <: Real}
     volume::T
 end
 
-# Constructores de Segmento, LineaPoligonal y Poligono
+mutable struct Mesh{T1 <: Real, T2 <: Real}
+    #init_point::Vector{T}
+    cells_per_dims::Vector{T1} # in cartesian
+    cell_size::Vector{T2}
+    cells::Union{Vector{Polygon{T2}}, Vector{Rhomboid{T2}}}
+    cells_centers::Vector{Vector{T2}}
+    shape::Polygon{T2}
+    include_frontier::Bool
+end
+
+
+## Constructores de Segmento, LineaPoligonal y Poligono
 
 segment(p1::Vector{T}, p2::Vector{T}) where T <: Real = Segment(p1, p2, LinearAlgebra.norm(p1 - p2))
 
 function polygonalline(s::Array{Segment{T}}) where T <: Real
     vertices = unique(vcat([[segmento.initial_point, segmento.final_point] for segmento in s]...))
-    line_length = sum([segmento.longitud for segmento in s])
+    line_length = sum([segmento.length for segmento in s])
     PolygonalLine(vertices, s, line_length)
 end
 
@@ -69,9 +80,11 @@ function rhomboid(diagonal::Vector{T}, center::Vector{T}, orientation::Val{:vert
     Rhomboid(diagonal, vertices, segments, center)
 end
 
-rhomboid(diagonal, center, orientation::Symbol) = rhomboid(diagonal, center, Val(orientation))
+rhomboid(diagonal::Vector{T}, center::Vector{T}, orientation::Symbol) where T <: Real  = rhomboid(diagonal, center, Val(orientation))
 
-# Extesión de métodos para graficar las estructuras previas
+
+
+## Methods extension for plotting previous structures
 """
 La funcion ´plot` a partir de un segmento y genera una grafica
 """
@@ -149,40 +162,44 @@ function plot!(p::Union{Polygon{T}, Rhomboid{T}}; kw...)  where T <: Real
 end
 
 
-# Function for intersecting geoemtric structures
-
-function point_on_segment(p::Vector{T}, s::Segment{T}; epsilon::T = 1e-8, debug = false)  where T <: Real
-    x1, y1 = s.initial_point
-    x2, y2 = s.final_point
-    x, y = p
-    
-    Δx1 = x - x1
-    Δy1 = y - y1
-    Δx2 = x2 - x
-    Δy2 = y2 - y
-    
-    cross = Δx1 * Δy2 - Δy1 * Δx2
-    debug && @show cross
-    x_min = min(x1, x2)
-    x_max = max(x1, x2)
-    y_min = min(y1, y2)
-    y_max = max(y1, y2)
-    (x_min <= x <= x_max) & (y_min <= y <= y_max) & (abs(cross) < epsilon) ? true : false
+function plot(mesh::Mesh; plot_cell_center::Bool = false, color_cell::Symbol = :black, color_mesh_shape::Symbol = :green, color_cell_center::Symbol = :blue, kwargs...)
+    (;cells_per_dims, cell_size, cells, cells_centers, shape, include_frontier) = mesh
+    plot(ratio = :equal, legend = false)
+    for cell in cells
+        plot!(cell; color = color_cell, kwargs...)
+    end
+    if plot_cell_center 
+        scatter!(Tuple.(cells_centers); color = color_cell_center, kwargs...)
+    end
+    plot!(shape; color = color_mesh_shape, kwargs...)
 end
 
-point_on_segment(s::Segment{T}, p::Vector{T}; kwargs...) where T <: Real = point_on_segment(p, s; kwargs...)
+
+function plot!(mesh::Mesh; plot_cell_center::Bool = false, color_cell::Symbol = :black, color_mesh_shape::Symbol = :green, color_cell_center::Symbol = :blue, kwargs...)
+    (;cells_per_dims, cell_size, cells, cells_centers, shape, include_frontier) = mesh
+    plot!(ratio = :equal, legend = false)
+    for cell in cells
+        plot!(cell; color = color_cell, kwargs...)
+    end
+    if plot_cell_center 
+        scatter!(Tuple.(cells_centers); color = color_cell_center, kwargs...)
+    end
+    plot!(shape; color = color_mesh_shape, kwargs...)
+end
+
+
+# Function for intersecting geoemtric structures
+function cross_product(a::Vector{T}, b::Vector{T}, c::Vector{T})  where T <: Real
+    vec = [a, b, c]
+    p = [vcat(vec[k], [0.]) for k in 1:length(vec)]
+    cross(p[1] - p[3], p[2] - p[3]) 
+end
 
 function intersection(p::Vector{T}, s::Segment{T})  where T <: Real
     (min(s.initial_point[1], s.final_point[1]) <= p[1] <= max(s.initial_point[1], s.final_point[1])) && (min(s.initial_point[2], s.final_point[2]) <= p[2] <= max(s.initial_point[2], s.final_point[2]))
 end
 
 intersection(s::Segment{T}, p::Vector{T}) where T <: Real = intersection(p, s)
-
-function cross_product(a::Vector{T}, b::Vector{T}, c::Vector{T})  where T <: Real
-    vec = [a, b, c]
-    p = [vcat(vec[k], [0.]) for k in 1:length(vec)]
-    cross(p[1] - p[3], p[2] - p[3]) 
-end
 
 function intersection(s1::Segment{T}, s2::Segment{T})  where T <: Real
     p1 = s1.initial_point
@@ -210,6 +227,31 @@ function intersection(s1::Segment{T}, s2::Segment{T})  where T <: Real
     end
    return intersect
 end
+
+vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Val{:x}) where T <: Real = (seg.initial_point[1] - vec_initial_point[1]) / (vec[1] - seg.final_point[1] + seg.initial_point[1])
+vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Val{:y}) where T <: Real = (seg.initial_point[2] - vec_initial_point[2]) / (vec[2] - seg.final_point[2] + seg.initial_point[2])
+vector_segment_intersection(vec::Vector{T}, vec_initial_point::Vector{T}, seg::Segment{T}, dim::Symbol) where T <: Real = vector_segment_intersection(vec, vec_initial_point, seg, Val(sim))
+
+function point_on_segment(p::Vector{T}, s::Segment{T}; epsilon::T = 1e-8, debug = false)  where T <: Real
+    x1, y1 = s.initial_point
+    x2, y2 = s.final_point
+    x, y = p
+    
+    Δx1 = x - x1
+    Δy1 = y - y1
+    Δx2 = x2 - x
+    Δy2 = y2 - y
+    
+    cross = Δx1 * Δy2 - Δy1 * Δx2
+    debug && @show cross
+    x_min = min(x1, x2)
+    x_max = max(x1, x2)
+    y_min = min(y1, y2)
+    y_max = max(y1, y2)
+    (x_min <= x <= x_max) & (y_min <= y <= y_max) & (abs(cross) < epsilon) ? true : false
+end
+
+point_on_segment(s::Segment{T}, p::Vector{T}; kwargs...) where T <: Real = point_on_segment(p, s; kwargs...)
 
 function point_on_polygon_frontier(point::Vector{T}, polygon::Union{Polygon{T}, Rhomboid{T}}) where T <: Real
     on_polygon_frontier = [point_on_segment(segment, point) for segment in polygon.segments]
@@ -242,3 +284,39 @@ end
 #end
 
 point_inside_polygon(polygon::Union{Polygon{T}, Rhomboid{T}}, point::Vector{T}; kwargs...) where T <: Real = point_inside_polygon(point, polygon; kwargs...)
+
+
+## Mesh generation auxiliary functions
+
+find_cell(position::Vector{T}, mesh::Mesh{T}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
+find_cell(position::Vector{T}, mesh::Mesh{T}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
+find_cell(mesh::Mesh{T}, position::Vector{T}) where T <: Real = find_cell(position, mesh)
+find_cell(mesh::Mesh{T}, position::Vector{T}) where T <: Real = find_cell(position, mesh)
+
+
+function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
+    init_point == [0., 0.] ? init_point = [rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
+    L = rhomboids_per_dims .* rhomboid_diagonal
+    a = [rhomboid_diagonal[1] * 0.5, 0.]
+    b = [0, rhomboid_diagonal[2] * 0.5]
+    v1 = a .+ b
+    v2 = a .- b
+    
+    rhomboid_center_points = [init_point .+ (m * v1) .+ (n .* v2) for m in 0:maximum(rhomboid_per_dims) + 1 for n in 0:maximum(rhomboid_per_dims) + 1]
+    idx_center_points_inside = findall([point_inside_polygon(point, mesh_shape; include_frontier = include_frontier) for point in rhomboid_center_points])
+    rhomboid_center_points_inside = rhomboid_center_points[idx_center_points_inside]
+    rhomboids = [rhomboid(rhomboid_diagonal, center, :vertical) for center in rhomboid_center_points_inside];
+    Mesh(rhomboids_per_dims, rhomboid_diagonal, rhomboids, rhomboid_center_points_inside, mesh_shape, include_frontier)
+end
+
+
+function generate_rectangular_stripe(cells_per_dims::Vector{T1}, cell_size::Vector{T2}, init_point::Vector{T2}) where {T1 <: Real, T2 <: Real}#cell dims repressents the dimensions of an unitary cell 
+    init_point == [0., 0.] ? init_point = [cell_size[1] * (cells_per_dims[1] - 0.5), 0.] : init_point = init_point
+    L = cells_per_dims .* cell_size
+    p1 = init_point .+ [0., - cell_size[2]]
+    p2 = init_point .+ [0., cell_size[2]]
+    p4 = init_point .+ [cell_size[1] + L[1], - cell_size[2]]
+    p3 = init_point .+ [cell_size[1] + L[1], cell_size[2]]
+
+    rectangular_stripe = polygon([p1, p2, p3, p4])     
+end

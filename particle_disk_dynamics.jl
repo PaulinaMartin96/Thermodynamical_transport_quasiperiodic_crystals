@@ -24,12 +24,12 @@ end
 ## Hard_disk constructors
  # We used two different functions instead of one function with Union in the arguments because a vector of Union of two types makes the code slower
  # This could be solved by defining an Abstract type called Polygon that includes both Polygon and Rhomboid
-function hard_disk(mass::T, position::Vector{T}, angular_velocity::Vector{T}, radius::T, mesh::Mesh{T}) where T <: Real
+function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
     Hard_Disk(mass, position, angular_velocity, radius, n_cell)
 end
 
-function hard_disk(mass::T, position::Vector{T}, angular_velocity::Vector{T}, radius::T, mesh::Mesh{T}) where T <: Real
+function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
     Hard_Disk(mass, position, angular_velocity, radius, n_cell)
 end
@@ -37,7 +37,7 @@ end
 function zero(d::Hard_Disk)
     x = d.mass
     y = d.position
-    Disco_Duro(zeros(x), zero(y), zero(y), zero(y), zeros(x), 1)
+    Disco_Duro(zeros(x), zeros(x), zero(y), zero(y), zero(y), 1)
 end
 
 ## Particle constructors

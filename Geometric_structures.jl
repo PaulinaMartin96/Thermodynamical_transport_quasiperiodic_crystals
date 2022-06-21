@@ -288,14 +288,14 @@ point_inside_polygon(polygon::Union{Polygon{T}, Rhomboid{T}}, point::Vector{T}; 
 
 ## Mesh generation auxiliary functions
 
-find_cell(position::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
-find_cell(position::Vector{T1}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
-find_cell(mesh::Mesh{T1, T2}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
-find_cell(mesh::Mesh{T1, T2}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
+find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])[1]
+find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])[1]
+find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
+find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 
 
 function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
-    init_point == [0., 0.] ? init_point = [rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
+    init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
     L = rhomboids_per_dims .* rhomboid_diagonal
     a = [rhomboid_diagonal[1] * 0.5, 0.]
     b = [0, rhomboid_diagonal[2] * 0.5]
@@ -311,7 +311,7 @@ end
 
 
 function generate_rectangular_stripe(cells_per_dims::Vector{T1}, cell_size::Vector{T2}, init_point::Vector{T2}) where {T1 <: Real, T2 <: Real}#cell dims repressents the dimensions of an unitary cell 
-    init_point == [0., 0.] ? init_point = [cell_size[1] * (cells_per_dims[1] - 0.5), 0.] : init_point = init_point
+    init_point == [0., 0.] ? init_point = [-cell_size[1] * (cells_per_dims[1] - 0.5), 0.] : init_point = init_point
     L = cells_per_dims .* cell_size
     p1 = init_point .+ [0., - cell_size[2]]
     p2 = init_point .+ [0., cell_size[2]]

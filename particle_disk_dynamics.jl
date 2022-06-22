@@ -37,7 +37,7 @@ end
 function zero(d::Hard_Disk)
     x = d.mass
     y = d.position
-    Disco_Duro(zeros(x), zeros(x), zero(y), zero(y), zero(y), 1)
+    Hard_Disk(zeros(x), zeros(x), zero(y), zero(y), zero(y), 1)
 end
 
 ## Particle constructors

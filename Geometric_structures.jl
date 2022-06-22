@@ -285,6 +285,23 @@ end
 
 point_inside_polygon(polygon::Union{Polygon{T}, Rhomboid{T}}, point::Vector{T}; kwargs...) where T <: Real = point_inside_polygon(point, polygon; kwargs...)
 
+function polygon_on_frontier(polygon::Rhomboid{T}, frontier::Union{Polygon{T}, Rhomboid{T}}) where T <: Real
+    center_on_frontier = point_on_polygon_frontier(polygon.center, forntier)
+end
+
+function find_idx_center_polygons_on_frontier(points::Vector{Vector{T}}, frontier::Union{Polygon{T}, Rhomboid{T}}, polygon_type::Val{:rhomboid}) where T <: Real
+    # points are the centers, polygon is the mesh shape
+    idx_points_on_polygon_frontier = findall([on_polygon_frontier(point, polygon) for point in points])
+    points_on_polygon_frontier = points[idx_points_on_polygon_frontier]
+    return (idx_points_on_polygon_frontier, points_on_polygon_frontier)
+end
+
+function find_polygons_on_frontier(mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+    (; cells_per_dims, cell_size, cells, cells_centers, shape, include_frontier) = mesh
+    idx, center_points = find_idx_center_polygons_on_frontier(cells_centers, shape)
+    cells_on_frontier = cells[idx]
+    return cells_on_frontier
+end
 
 ## Mesh generation auxiliary functions
 
@@ -292,9 +309,13 @@ find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Rea
 find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])[1]
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
+find_cell(position::Vector{T}, cells::Vector{Rhomboid{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])[1]
+find_cell(position::Vector{T}, cells::Vector{Polygon{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])[1]
+find_cell(cells::Vector{Polygon{T}}, position::Vector{T}) where T <: Real = find_cell(position, cells)
+find_cell(cells::Vector{Rhomboid{T}}, position::Vector{T}) where T <: Real = find_cell(position, cells)
 
 
-function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
+function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true, min_val::Vector{Int} = [0., 0,]) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
     init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
     L = rhomboids_per_dims .* rhomboid_diagonal
     a = [rhomboid_diagonal[1] * 0.5, 0.]
@@ -302,7 +323,7 @@ function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagona
     v1 = a .+ b
     v2 = a .- b
     
-    rhomboid_center_points = [init_point .+ (m * v1) .+ (n .* v2) for m in 0:maximum(rhomboid_per_dims) + 1 for n in 0:maximum(rhomboid_per_dims) + 1]
+    rhomboid_center_points = [init_point .+ (m * v1) .+ (n .* v2) for m in min_val[1]:maximum(rhomboid_per_dims) + 1 for n in min_val[2]:maximum(rhomboid_per_dims) + 1]
     idx_center_points_inside = findall([point_inside_polygon(point, mesh_shape; include_frontier = include_frontier) for point in rhomboid_center_points])
     rhomboid_center_points_inside = rhomboid_center_points[idx_center_points_inside]
     rhomboids = [rhomboid(rhomboid_diagonal, center, :vertical) for center in rhomboid_center_points_inside];

@@ -4,10 +4,10 @@ using LinearAlgebra
 ## Structures
 mutable struct Hard_Disk{T <: Real}
     mass::T
+    radius::T
     position::Vector{T}
     #velocity::Vector{T}
     angular_velocity::Vector{T}
-    radius::T
     cell::Int
 end
 
@@ -26,18 +26,18 @@ end
  # This could be solved by defining an Abstract type called Polygon that includes both Polygon and Rhomboid
 function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
-    Hard_Disk(mass, position, angular_velocity, radius, n_cell)
+    Hard_Disk(mass, radius, position, angular_velocity, n_cell)
 end
 
 function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n_cell = find_cell(position, mesh)
-    Hard_Disk(mass, position, angular_velocity, radius, n_cell)
+    Hard_Disk(mass, radius, position, angular_velocity, n_cell)
 end
 
 function zero(d::Hard_Disk)
     x = d.mass
     y = d.position
-    Hard_Disk(zeros(x), zeros(x), zero(y), zero(y), zero(y), 1)
+    Hard_Disk(zero(x), zero(x), zero(y), zero(y), zero(y), 1)
 end
 
 ## Particle constructors

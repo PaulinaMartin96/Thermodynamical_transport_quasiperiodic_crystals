@@ -62,6 +62,16 @@ mutable struct Mesh{T1 <: Real, T2 <: Real}
     include_frontier::Bool # include polygons on frontier
 end
 
+# Para que el código sea mas rapido, usar esta opción de estructura 
+#mutable struct Mesh{T <: Real}
+#    #init_point::Vector{T}
+#    cells_per_dims::Vector{T} # in cartesian
+#    cell_size::Vector{T}
+#    cells::Union{Vector{Polygon{T}}, Vector{Rhomboid{T}}}
+#    cells_centers::Vector{Vector{T}}
+#    frontier::Mesh_Frontier{T} #frontier
+#    include_frontier::Bool # include polygons on frontier
+#end
 
 
 ## Constructores de Segmento, LineaPoligonal y Poligono
@@ -86,6 +96,13 @@ function polygon(vertices::Vector{Vector{T}}) where T <: Real
     perimetro = sum([arista.length for arista in aristas])
     area = polygon_area([vertice for vertice in vertices])
     return Polygon(vertices, aristas, perimetro, area)
+end
+
+function polygon(segments::Vector{Segment{T}}) where T <: Real
+    vertices = vcat([[segment.initial_point, segment.final_point] for segment in segments]...)
+    perimeter = sum(segment.length for segment in segments)
+    area = polygon_area([vertice for vertice in vertices])
+    return Polygon(vertices, segments, perimeter, area)
 end
 
 function rhomboid(diagonal::Vector{T}, center::Vector{T}, orientation::Val{:vertical}) where T <: Real
@@ -163,6 +180,7 @@ function plot!(lp::PolygonalLine{T}; kw...) where T <: Real
     for segment in lp.segments
         plot!(segment; kw...)
     end
+    plot!()
 end
 
 
@@ -318,22 +336,46 @@ end
 
 function find_idx_center_polygons_on_frontier(points::Vector{Vector{T}}, frontier::Union{Polygon{T}, Rhomboid{T}}, polygon_type::Val{:rhomboid}) where T <: Real
     # points are the centers, polygon is the mesh shape
-    idx_points_on_polygon_frontier = findall([on_polygon_frontier(point, polygon) for point in points])
+    idx_points_on_polygon_frontier = findall([point_on_polygon_frontier(point, frontier) for point in points])
     points_on_polygon_frontier = points[idx_points_on_polygon_frontier]
     return (idx_points_on_polygon_frontier, points_on_polygon_frontier)
 end
 
-function find_polygons_on_frontier(mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+find_idx_center_polygons_on_frontier(points::Vector{Vector{T}}, frontier::Union{Polygon{T}, Rhomboid{T}}, polygon_type::Symbol) where T <: Real = find_idx_center_polygons_on_frontier(points, frontier, Val(polygon_type))
+
+function find_polygons_on_frontier(mesh::Mesh{T2,T1}) where {T1<:Real,T2<:Real}
     (; cells_per_dims, cell_size, cells, cells_centers, frontier, include_frontier) = mesh
-    idx, center_points = find_idx_center_polygons_on_frontier(cells_centers, frontier.shape)
+    idx, center_points = find_idx_center_polygons_on_frontier(cells_centers, frontier.shape, :rhomboid)
     cells_on_frontier = cells[idx]
-    return idx, center_points, cells_on_frontier
+    centers = [c.center for c in cells_on_frontier]
+    min_y = minimum(x -> x[2], centers)
+    max_y = maximum(x -> x[2], centers)
+    cells_frontier_dict = Dict()
+    cells_frontier_dict[:lower] = [cell for cell in cells_on_frontier if cell.center[2] == min_y]
+    cells_frontier_dict[:upper] = [cell for cell in cells_on_frontier if cell.center[2] == max_y]
+    return idx, center_points, cells_frontier_dict
+end
+
+function get_frontier(mesh::Mesh{T1,T2}) where {T1<:Real,T2<:Real}
+    (; cells_per_dims, cell_size, cells, cells_centers, frontier, include_frontier) = mesh
+    centers_min_x = minimum(x -> x[1], cells_centers)
+    centers_max_x = maximum(x -> x[1], cells_centers)
+    centers_min_y = minimum(x -> x[2], cells_centers)
+    centers_max_y = maximum(x -> x[2], cells_centers)
+    cells_frontier_dict = Dict()
+    cells_frontier_dict[:lower] = [cell for cell in cells if cell.center[2] == centers_min_y]
+    cells_frontier_dict[:upper] = [cell for cell in cells if cell.center[2] == centers_max_y]
+    cells_frontier_dict[:left] = [cell for cell in cells if cell.center[1] == centers_min_x]
+    cells_frontier_dict[:right] = [cell for cell in cells if cell.center[1] == centers_max_x]
+
+    return cells_frontier_dict
 end
 
 ## Mesh generation auxiliary functions
 
-find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])[1]
-find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])[1]
+# Definir metodos apra estas funciones donde solo se tenga un tipo de Real
+find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
+find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 find_cell(position::Vector{T}, cells::Vector{Rhomboid{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])[1]
@@ -343,6 +385,22 @@ find_cell(cells::Vector{Rhomboid{T}}, position::Vector{T}) where T <: Real = fin
 
 
 function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}, mesh_shape::Polygon{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = true, min_val::Vector{Int} = [0, 0,]) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
+    init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
+    L = rhomboids_per_dims .* rhomboid_diagonal
+    a = [rhomboid_diagonal[1] * 0.5, 0.]
+    b = [0, rhomboid_diagonal[2] * 0.5]
+    v1 = a .+ b
+    v2 = a .- b
+    
+    rhomboid_center_points = [init_point .+ (m * v1) .+ (n .* v2) for m in min_val[1]:maximum(rhomboid_per_dims) + 1 for n in min_val[2]:maximum(rhomboid_per_dims) + 1]
+    idx_center_points_inside = findall([point_inside_polygon(point, mesh_shape; include_frontier = include_frontier) for point in rhomboid_center_points])
+    rhomboid_center_points_inside = rhomboid_center_points[idx_center_points_inside]
+    rhomboids = [rhomboid(rhomboid_diagonal, center, :vertical) for center in rhomboid_center_points_inside];
+    frontier = mesh_frontier(mesh_shape)
+    Mesh(rhomboids_per_dims, rhomboid_diagonal, rhomboids, rhomboid_center_points_inside, frontier, include_frontier)
+end
+
+function generate_rhomboid_mesh(rhomboids_per_dims::Vector{T}, rhomboid_diagonal::Vector{T}, mesh_shape::Polygon{T}; init_point::Vector{T} = [0., 0.], include_frontier::Bool = true, min_val::Vector{Int} = [0, 0,]) where T <: Real# side represents minor diagonal
     init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
     L = rhomboids_per_dims .* rhomboid_diagonal
     a = [rhomboid_diagonal[1] * 0.5, 0.]
@@ -370,6 +428,45 @@ function generate_rectangular_stripe(cells_per_dims::Vector{T1}, cell_size::Vect
     rectangular_stripe = polygon([p1, p2, p3, p4])     
 end
 
+function generate_rectangular_stripe(cells_per_dims::Vector{T}, cell_size::Vector{T}, init_point::Vector{T}) where T <: Real #cell dims repressents the dimensions of an unitary cell 
+    init_point == [0., 0.] ? init_point = [-cell_size[1] * (cells_per_dims[1] - 0.5), 0.] : init_point = init_point
+    L = cells_per_dims .* cell_size
+    p1 = init_point .+ [0., - cell_size[2]]
+    p2 = init_point .+ [0., cell_size[2]]
+    p4 = init_point .+ [cell_size[1] + L[1], - cell_size[2]]
+    p3 = init_point .+ [cell_size[1] + L[1], cell_size[2]]
+
+    rectangular_stripe = polygon([p1, p2, p3, p4])     
+end
+
+# This only work for rhomboid mesh and Lorentz gas like systemsm with two rows of rhomboidal cells
+function generate_frontier_lorentz_gas(rhomboids_per_dims::Vector{T1}, rhomboid_diagonal::Vector{T2}; init_point::Vector{T2} = [0., 0.], include_frontier::Bool = false, min_val::Vector{Int} = [0, 0,]) where {T1 <: Real, T2 <: Real}# side represents minor diagonal
+    init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
+    rectangular_stripe = generate_rectangular_stripe(rhomboids_per_dims, rhomboid_diagonal, init_point)
+    mesh = generate_rhomboid_mesh(rhomboids_per_dims, rhomboid_diagonal, rectangular_stripe; init_point = init_point, include_frontier = include_frontier, min_val = min_val)
+    cells = mesh.cells
+    left_side = [cells[1].segments[1], cells[1].segments[2], cells[2].segments[1], cells[2].segments[2]]
+    right_side = [cells[end].segments[3], cells[end].segments[4], cells[end-1].segments[3], cells[end- 1].segments[4]]
+    upper_side = [segment(cells[2].segments[1].final_point, cells[end].segments[4].final_point)]
+    lower_side = [segment(cells[1].segments[2].final_point, cells[end-1].segments[3].initial_point)]
+    segments = vcat(left_side, right_side, upper_side, lower_side)
+    return polygon(segments)
+end
+
+# This only work for rhomboid mesh and Lorentz gas like systemsm with two rows of rhomboidal cells
+function generate_frontier_lorentz_gas(rhomboids_per_dims::Vector{T}, rhomboid_diagonal::Vector{T}; init_point::Vector{T} = [0., 0.], include_frontier::Bool = false, min_val::Vector{Int} = [0, 0,]) where T <: Real # side represents minor diagonal
+    init_point == [0., 0.] ? init_point = [-rhomboid_diagonal[1] * (rhomboid_per_dims[1] - 0.5), 0.] : init_point = init_point
+    rectangular_stripe = generate_rectangular_stripe(rhomboids_per_dims, rhomboid_diagonal, init_point)
+    mesh = generate_rhomboid_mesh(rhomboids_per_dims, rhomboid_diagonal, rectangular_stripe; init_point = init_point, include_frontier = include_frontier, min_val = min_val)
+    cells = mesh.cells
+    left_side = [cells[1].segments[1], cells[1].segments[2], cells[2].segments[1], cells[2].segments[2]]
+    right_side = [cells[end].segments[3], cells[end].segments[4], cells[end-1].segments[3], cells[end- 1].segments[4]]
+    upper_side = [segment(cells[2].segments[1].final_point, cells[end].segments[4].final_point)]
+    lower_side = [segment(cells[1].segments[2].final_point, cells[end-1].segments[3].initial_point)]
+    segments = vcat(left_side, right_side, upper_side, lower_side)
+    return polygon(segments)
+end
+
 function identify_segment_type(frontier::Polygon{T}) where T <: Real
     (; vertices, segments, perimeter, area) = frontier
     min_x = findmin(x -> x[1], vertices)[1]
@@ -393,6 +490,7 @@ function identify_segment_type(frontier::Polygon{T}) where T <: Real
     end
     return segment_types
 end
+
 
 ## Other functions
 

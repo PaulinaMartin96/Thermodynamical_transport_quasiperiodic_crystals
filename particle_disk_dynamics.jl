@@ -25,11 +25,11 @@ end
  # We used two different functions instead of one function with Union in the arguments because a vector of Union of two types makes the code slower
  # This could be solved by defining an Abstract type called Polygon that includes both Polygon and Rhomboid
 function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
-    n_cell = find_cell(position, mesh)
+    n_cell = find_cell(position, mesh)[1]
     Hard_Disk(mass, radius, position, angular_velocity, n_cell)
 end
 
-function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+function hard_disk(mass::T, radius::T, position::Vector{T}, angular_velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
     n_cell = find_cell(position, mesh)
     Hard_Disk(mass, radius, position, angular_velocity, n_cell)
 end
@@ -37,44 +37,82 @@ end
 function zero(d::Hard_Disk)
     x = d.mass
     y = d.position
-    Hard_Disk(zero(x), zero(x), zero(y), zero(y), zero(y), 1)
+    Hard_Disk(zero(x), zero(x), zero(y), zero(y), 1)
 end
 
-function generate_hard_disks_vector(mass::T1, radius::T1, positions::Vector{Vector{T1}}, angular_velocity::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
-    n = length(positions)
-    hard_disks_vec = Vector{Hard_Disk{T1}}(undef, n)
-    for i in 1:n
-        hard_disk_vec[i] = hard_disk(mass, radius, positions[i], angular_velocity[i], mesh)
-    end
-    return hard_disk_vec
-end
 
 ## Particle constructors
-function particle(mass::T, position::Vector{T}, velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
-    normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 
-    tangetial_vec = find_tangential_vector(velocity)
-    normal_velocity = projection(velocity, normal_vec) .* normal_vec
-    tangential_velocity = projection(velocity, tangential_vec) .* tangential_vec
-    n_cell = find_cell(position, mesh)
-    Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
-end
+#Agregar emtodos con T1 y T2 comutados para los argumentos. Esto es para Mesh
 
 function particle(mass::T1, position::Vector{T1}, velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 
     tangential_vec = find_tangential_vector(velocity)
     normal_velocity = projection(velocity, normal_vec) .* normal_vec
     tangential_velocity = projection(velocity, tangential_vec) .* tangential_vec
-    n_cell = find_cell(position, mesh)
+    n_cell = find_cell(position, mesh)[1]
     Particle(mass, position, velocity, normal_velocity, tangential_velocity, n_cell)
+end
+
+function particle(mass::T, position::Vector{T}, velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
+    normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 
+    tangetial_vec = find_tangential_vector(velocity)
+    normal_velocity = projection(velocity, normal_vec) .* normal_vec
+    tangential_velocity = projection(velocity, tangential_vec) .* tangential_vec
+    n_cell = find_cell(position, mesh)[1]
+    Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
 end
 
 function particle(mass::T1, position::Vector{T1}, normal_velocity::Vector{T1}, tangential_velocity::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     velocity = normal_velocity .+ tangential_velocity
-    n_cell = find_cell(position, mesh)
+    n_cell = find_cell(position, mesh)[1]
     Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
 end
 
-#Agregar emtodos con T1 y T2 comutados para los argumentos. Esto es para Mesh
+function particle(mass::T, position::Vector{T}, normal_velocity::Vector{T}, tangential_velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
+    velocity = normal_velocity .+ tangential_velocity
+    n_cell = find_cell(position, mesh)[1]
+    Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
+end
+
+function generate_hard_disk_vector(mass::T1, radius::T1, positions::Vector{Vector{T1}}, angular_velocities::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+    n = length(positions)
+    hard_disks_vec = Vector{Hard_Disk{T1}}(undef, n)
+    for i in 1:n
+        hard_disks_vec[i] = hard_disk(mass, radius, positions[i], angular_velocities[i], mesh)
+    end
+    return hard_disks_vec
+end
+
+## Initialize a vector of hard disks or particles
+
+function generate_hard_disk_vector(mass::T, radius::T, positions::Vector{Vector{T}}, angular_velocities::Vector{Vector{T}}, mesh::Mesh{T}) where T <: Real
+    n = length(positions)
+    hard_disks_vec = Vector{Hard_Disk{T}}(undef, n)
+    for i in 1:n
+        hard_disks_vec[i] = hard_disk(mass, radius, positions[i], angular_velocities[i], mesh)
+    end
+    return hard_disks_vec
+end
+
+function generate_particle_vector(mass::T1, positions::Vector{Vector{T1}}, velocities::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+    n = length(positions)
+    particles_vec = Vector{Hard_Disk{T1}}(undef, n)
+    for i in 1:n
+        particles_vec[i] = particle(mass, positions[i], velocities[i], mesh)
+    end
+    return particles_vec
+end
+
+function generate_particle_vector(mass::T, positions::Vector{Vector{T}}, velocities::Vector{Vector{T}}, mesh::Mesh{T}) where T <: Real
+    n = length(positions)
+    particles_vec = Vector{Hard_Disk{T}}(undef, n)
+    for i in 1:n
+        particles_vec[i] = particle(mass, positions[i], velocities[i], mesh)
+    end
+    return particles_vec
+end
+
+
 
 ## Dynamics auxiliary functions
 

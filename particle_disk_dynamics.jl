@@ -40,6 +40,15 @@ function zero(d::Hard_Disk)
     Hard_Disk(zero(x), zero(x), zero(y), zero(y), zero(y), 1)
 end
 
+function generate_hard_disks_vector(mass::T1, radius::T1, positions::Vector{Vector{T1}}, angular_velocity::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
+    n = length(positions)
+    hard_disks_vec = Vector{Hard_Disk{T1}}(undef, n)
+    for i in 1:n
+        hard_disk_vec[i] = hard_disk(mass, radius, positions[i], angular_velocity[i], mesh)
+    end
+    return hard_disk_vec
+end
+
 ## Particle constructors
 function particle(mass::T, position::Vector{T}, velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
     normal_vec = find_normal_vector(velocity) # In two dimensions, the nullspace() retunrs 

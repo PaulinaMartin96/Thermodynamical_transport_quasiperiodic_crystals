@@ -1,5 +1,6 @@
 using LinearAlgebra
 import Plots: plot, plot!
+import Base: zero
 
 # Estructuras de elementos geométricos
 mutable struct Segment{T <: Real}
@@ -67,7 +68,9 @@ end
 
 segment(p1::Vector{T}, p2::Vector{T}) where T <: Real = Segment(p1, p2, LinearAlgebra.norm(p1 - p2))
 
-function polygonalline(s::Array{Segment{T}}) where T <: Real
+zero(s::Segment{T}) where T <: Real = Segment(zero(s.initial_point), zero(s.final_point), zero(s.length))
+
+function polygonalline(s::Vector{Segment{T}}) where T <: Real
     vertices = unique(vcat([[segmento.initial_point, segmento.final_point] for segmento in s]...))
     line_length = sum([segmento.length for segmento in s])
     PolygonalLine(vertices, s, line_length)
@@ -101,9 +104,9 @@ function mesh_frontier(mesh_shape::Polygon{T}) where T <: Real
     which_segments = Vector{Vector{Segment{T}}}(undef, length(segment_types_names))
     for (i, s_type) in enumerate(segment_types_names)
         idx = findall(x -> x == s_type, segment_types)
-        which_segments[i] = segments[idx]
+        length(idx) == 0 ? (which_segments[i] = [zero(segments[1])]) : (which_segments[i] = segments[idx])
     end
-    polygonal_lines = poligonalline.(which_segments)
+    polygonal_lines = polygonalline.(which_segments)
     Mesh_Frontier(mesh_shape, segments, vertices, polygonal_lines[1], polygonal_lines[2], polygonal_lines[3], polygonal_lines[4], perimeter)
 end
 

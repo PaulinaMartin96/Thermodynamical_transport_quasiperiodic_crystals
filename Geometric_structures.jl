@@ -313,7 +313,7 @@ end
 point_inside_polygon(polygon::Union{Polygon{T}, Rhomboid{T}}, point::Vector{T}; kwargs...) where T <: Real = point_inside_polygon(point, polygon; kwargs...)
 
 function polygon_on_frontier(polygon::Rhomboid{T}, frontier::Union{Polygon{T}, Rhomboid{T}}) where T <: Real
-    center_on_frontier = point_on_polygon_frontier(polygon.center, forntier)
+    center_on_frontier = point_on_polygon_frontier(polygon.center, frontier)
 end
 
 function find_idx_center_polygons_on_frontier(points::Vector{Vector{T}}, frontier::Union{Polygon{T}, Rhomboid{T}}, polygon_type::Val{:rhomboid}) where T <: Real

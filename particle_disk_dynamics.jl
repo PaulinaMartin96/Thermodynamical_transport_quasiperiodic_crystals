@@ -30,11 +30,11 @@ function hard_disk(mass::T1, radius::T1, position::Vector{T1}, angular_velocity:
 end
 
 function hard_disk(mass::T, radius::T, position::Vector{T}, angular_velocity::Vector{T}, mesh::Mesh{T}) where T <: Real
-    n_cell = find_cell(position, mesh)
+    n_cell = find_cell(position, mesh)[1]
     Hard_Disk(mass, radius, position, angular_velocity, n_cell)
 end
 
-function zero(d::Hard_Disk)
+function zero(d::Hard_Disk{T}) where T <: Real
     x = d.mass
     y = d.position
     Hard_Disk(zero(x), zero(x), zero(y), zero(y), 1)
@@ -74,6 +74,12 @@ function particle(mass::T, position::Vector{T}, normal_velocity::Vector{T}, tang
     Particle(mass, position, velocitiy, normal_velocity, tangetial_velocity, n_cell)
 end
 
+function zero(p::Particle{T}) where T <: Real
+    x = p.mass
+    y = p.position
+    Particle(zero(x), zero(x), zero(y), zero(y), 1)
+end
+
 function generate_hard_disk_vector(mass::T1, radius::T1, positions::Vector{Vector{T1}}, angular_velocities::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n = length(positions)
     hard_disks_vec = Vector{Hard_Disk{T1}}(undef, n)
@@ -96,7 +102,7 @@ end
 
 function generate_particle_vector(mass::T1, positions::Vector{Vector{T1}}, velocities::Vector{Vector{T1}}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real}
     n = length(positions)
-    particles_vec = Vector{Hard_Disk{T1}}(undef, n)
+    particles_vec = Vector{Particle{T1}}(undef, n)
     for i in 1:n
         particles_vec[i] = particle(mass, positions[i], velocities[i], mesh)
     end
@@ -105,13 +111,12 @@ end
 
 function generate_particle_vector(mass::T, positions::Vector{Vector{T}}, velocities::Vector{Vector{T}}, mesh::Mesh{T}) where T <: Real
     n = length(positions)
-    particles_vec = Vector{Hard_Disk{T}}(undef, n)
+    particles_vec = Vector{Particle{T}}(undef, n)
     for i in 1:n
         particles_vec[i] = particle(mass, positions[i], velocities[i], mesh)
     end
     return particles_vec
 end
-
 
 
 ## Dynamics auxiliary functions

@@ -121,9 +121,9 @@ end
 
 ## Dynamics auxiliary functions
 
-MRU(initial_position::Vector{T}, velocity::Vector{T}, time::T, dim::Val{:x}) where T <: Real = (velocity[1] * time) + initial_position[1]
-MRU(initial_position::Vector{T}, velocity::Vector{T}, time::T, dim::Val{:y}) where T <: Real = (velocity[2] * time) + initial_position[2]
-MRU(initial_position::Vector{T}, velocity::Vector{T}, time::T, s::Symbol) where T <: Real = MRU(time, velocity, initial_position, Val(s))
+MRU(time::T, initial_position::Vector{T}, velocity::Vector{T}, dim::Val{:x}) where T <: Real = (velocity[1] * time) + initial_position[1]
+MRU(time::T, initial_position::Vector{T}, velocity::Vector{T}, dim::Val{:y}) where T <: Real = (velocity[2] * time) + initial_position[2]
+MRU(time::T, initial_position::Vector{T}, velocity::Vector{T}, s::Symbol) where T <: Real = MRU(time, velocity, initial_position, Val(s))
 
 # Ecuación paramétrica de la circunferencia
 x_disk(center::Vector{T}, time::T, radius::T) where T <: Real = center[1] + 2*radius*cos(time)

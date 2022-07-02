@@ -1,6 +1,6 @@
 using LinearAlgebra
 import Plots: plot, plot!
-import Base: zero, ==
+import Base: zero, ==, unique
 
 # Estructuras de elementos geométricos
 mutable struct Segment{T <: Real}
@@ -107,6 +107,13 @@ function polygon(segments::Vector{Segment{T}}) where T <: Real
     perimeter = sum(segment.length for segment in segments)
     area = polygon_area([vertice for vertice in vertices])
     return Polygon(vertices, segments, perimeter, area)
+end
+
+function unique(polygons::Vector{Rhomboid{T}}) where T <: Real
+    polygons_centers = [polygon.center for polygon in polygons]
+    unique_centers = unique(polygons_centers)
+    unique_polygons_index = [find_cell(polygons, center)[1] for center in unique_centers]
+    return polygons[unique_polygons_index]
 end
 
 function rhomboid(diagonal::Vector{T}, center::Vector{T}, orientation::Val{:vertical}) where T <: Real
@@ -237,6 +244,30 @@ function plot!(mesh::Mesh; plot_cell_center::Bool = false, color_cell::Symbol = 
         scatter!(Tuple.(cells_centers); color = color_cell_center, kwargs...)
     end
     plot!(frontier.shape; color = color_mesh_shape, kwargs...)
+end
+
+function plot(polygons::Vector{Rhomboid{T}}; plot_polygon_center::Bool = false, color_polygon::Symbol = :black, color_polygon_center::Symbol = :blue, kwargs...) where T <: Real
+    plot(ratio = :equal, legend = false)
+    polygons_centers = [pol.center for pol in polygons]
+    for pol in polygons
+        plot!(pol; color = color_polygon, kwargs...)
+    end
+    if plot_polygon_center 
+        scatter!(Tuple.(polygons_centers); color = color_polygon_center, kwargs...)
+    end
+    plot!()
+end
+
+function plot!(polygons::Vector{Rhomboid{T}}; plot_polygon_center::Bool = false, color_polygon::Symbol = :black, color_polygon_center::Symbol = :blue, kwargs...) where T <: Real
+    plot!(ratio = :equal, legend = false)
+    polygons_centers = [pol.center for pol in polygons]
+    for pol in polygons
+        plot!(pol; color = color_polygon, kwargs...)
+    end
+    if plot_polygon_center 
+        scatter!(Tuple.(polygons_centers); color = color_polygon_center, kwargs...)
+    end
+    plot!()
 end
 
 
@@ -388,8 +419,8 @@ find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Rea
 find_cell(position::Vector{T1}, mesh::Mesh{T2, T1}) where {T1 <: Real, T2 <: Real} = findall([point_inside_polygon(polygon, position) for polygon in mesh.cells])
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
 find_cell(mesh::Mesh{T2, T1}, position::Vector{T1}) where {T1 <: Real, T2 <: Real} = find_cell(position, mesh)
-find_cell(position::Vector{T}, cells::Vector{Rhomboid{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])[1]
-find_cell(position::Vector{T}, cells::Vector{Polygon{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])[1]
+find_cell(position::Vector{T}, cells::Vector{Rhomboid{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])
+find_cell(position::Vector{T}, cells::Vector{Polygon{T}}) where T <: Real = findall([point_inside_polygon(polygon, position) for polygon in cells])
 find_cell(cells::Vector{Polygon{T}}, position::Vector{T}) where T <: Real = find_cell(position, cells)
 find_cell(cells::Vector{Rhomboid{T}}, position::Vector{T}) where T <: Real = find_cell(position, cells)
 
@@ -552,39 +583,3 @@ function get_trans_vectors(diagonal)
     return v1, v2
 end
 
-function find_neighbors(cell::Rhomboid{T2}, mesh::Mesh{T1, T2}) where {T1 <: Real, T2 <: Real}
-    (; diagonal, vertices, segments, center) = cell
-    v1, v2 = get_trans_vectors(diagonal)
-    neighbors_centers = [
-        center + (m * v1) + (n * v2)
-        for m in -1:1, n in -1:1
-        if !((m == 0) & (n == 0))
-    ]
-    indices = Vector{Int}(undef, length(neighbors_centers))
-    for (idx, center) in enumerate(neighbors_centers)
-        cell_idx = find_cell(center, mesh)
-        length(cell_idx) == 0 ? (indices[idx] = -1) : (indices[idx] = cell_idx[1])
-    end
-    
-    on_extended_mesh_indices = findall(x -> x == -1, indices)
-    on_extended_mesh_centers = neighbors_centers[on_extended_mesh_indices]
-    
-    extended_mesh = get_extended_mesh(mesh)
-    for idx in on_extended_mesh_indices
-        center = neighbors_centers[idx]
-        for (trans_vec, ex_mesh) in extended_mesh
-            extended_idx = find_cell(center, ex_mesh)
-            if length(extended_idx) != 0
-                extended_center = ex_mesh.cells_centers[extended_idx[1]]
-                inv_trans_center = extended_center - trans_vec
-                original_idx = find_cell(inv_trans_center, mesh)
-                if length(original_idx) != 0
-                    indices[idx] = original_idx[1]
-                    neighbors_centers[idx] = inv_trans_center
-                end
-            end
-        end
-    end
-    
-    indices, neighbors_centers
-end
